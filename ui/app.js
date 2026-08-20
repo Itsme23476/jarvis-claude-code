@@ -186,6 +186,8 @@ async function loadStatus() {
     $('#sModel').textContent = s.model;
     $('#cliBadge').textContent = s.runtime === 'claude' ? 'CLAUDE CLI' : 'CLI OFFLINE';
     window.__serverVoice = s.server_voice;
+    window.__serverSTT = s.server_stt;
+    if (s.listener) $('#btnMic').title = 'Listening via ' + s.listener;
   } catch (e) { $('#pGateway').textContent = 'offline'; }
 }
 
@@ -404,7 +406,7 @@ function setupMic() {
     if (busy) return;
     busy = true;
 
-    if (!window.__serverVoice || !navigator.mediaDevices || !window.MediaRecorder) {
+    if (!window.__serverSTT || !navigator.mediaDevices || !window.MediaRecorder) {
       fallbackToBrowser();
       return;
     }

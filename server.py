@@ -95,6 +95,8 @@ class Handler(BaseHTTPRequestHandler):
                 model=runtime.MODEL or "Claude default", permission=runtime.PERMISSION,
                 workdir=runtime.WORKDIR, vault=g["vault"], notes=g["total"],
                 links=len(g["links"]), voice=voice.describe(),
+                listener=voice.describe_stt(), stt=voice.stt_kind(),
+                server_stt=voice.stt_kind() in ("whisper", "fish"),
                 server_voice=voice.available(), session=SESSION["id"]))
 
         if p == "/api/graph":
@@ -241,6 +243,7 @@ def main():
   vault        {g['total']} notes · {len(g['links'])} links
                {g['vault']}
   voice        {voice.describe()}
+  listening    {voice.describe_stt()}
   workdir      {runtime.WORKDIR}
   open         http://localhost:{PORT}
 """, flush=True)

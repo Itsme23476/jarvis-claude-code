@@ -112,6 +112,19 @@ endpoint if you later want token-by-token speech.
 Swapping voices means editing `.env` and restarting — the value is read at
 startup.
 
+## Listening
+
+Local `whisper.cpp` is used automatically when `whisper-cli`, `ffmpeg` and a
+`ggml-*.bin` model are present — offline, free, about half a second for a short
+clip, and it works in any browser. Install with `brew install whisper-cpp` and
+drop a model anywhere the `WHISPER_MODEL` path points.
+
+Two fallbacks exist and both have a catch. Fish Audio ASR (`/v1/asr`) is billed
+from a **separate API-credit balance** to TTS, so it can 402 while speaking works
+fine. The browser's own recogniser relies on Google's speech service, which
+Chromium builds shipped without a Google key — Brave especially — reject with a
+bare `network` error.
+
 ## Demo fixtures
 
 `JARVIS_DEMO=1` (the default) intercepts a handful of scripted questions so a
