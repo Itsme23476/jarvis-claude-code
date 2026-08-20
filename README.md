@@ -6,6 +6,23 @@ billing. The memory is a folder of markdown you can open in Obsidian.
 
 Nothing is hosted. The server binds to `127.0.0.1` only.
 
+## Quick start with Claude Code
+
+Paste this into a fresh Claude Code session:
+
+> Clone https://github.com/Itsme23476/jarvis-claude-code and set it up for me.
+> Read SETUP-PROMPT.md in the repo first and follow it — it has the rules that
+> matter. Short version: it runs on my Claude subscription so never use `--bare`
+> and never set ANTHROPIC_API_KEY; ask me for my Fish Audio key and put it in
+> `.env` without printing it back; help me pick a voice; then start it and verify
+> it actually speaks before telling me it works.
+>
+> One thing to get right: Fish Audio performs `[square brackets]` as delivery
+> directions and never speaks them, so write JARVIS's lines to be spoken —
+> `[dry]`, `[warm]`, `[lightly amused]`, or free-form like `[the calm tone of
+> someone who has done this a thousand times]`. No markdown, no emoji, numbers as
+> words, deadpan throughout.
+
 ## What it is
 
 Two things fused together:
