@@ -1,0 +1,10 @@
+.env
+state.json
+__pycache__/
+*.pyc
+raw-*.log
+
+# skills installer writes a symlink farm per agent; keep .agents (real content)
+# plus .claude (what Claude Code reads) and drop the rest
+.hermes/
+.kiro/

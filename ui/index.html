@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="jarvis-token" content="__JARVIS_TOKEN__">
+<title>JARVIS · Claude Code</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="boot">
+
+<header class="topbar">
+  <div class="brand">
+    <div class="reactor-mini"><span></span></div>
+    <div class="brandtext">
+      <div class="eyebrow">Claude Code Direct Channel</div>
+      <h1>JARVIS</h1>
+    </div>
+    <span class="demo-badge" id="demoBadge">DEMO</span>
+  </div>
+  <div class="pills">
+    <div class="pill"><i class="dot ok"></i><span>Gateway</span><b id="pGateway">booting</b></div>
+    <div class="pill"><i class="dot ok"></i><span>Brain</span><b id="pBrain">Claude CLI</b></div>
+    <div class="pill"><i class="dot warn"></i><span>Voice</span><b id="pVoice">browser</b></div>
+  </div>
+</header>
+
+<main class="grid">
+
+  <!-- ── left rail ─────────────────────────────── -->
+  <aside class="rail left">
+    <section class="panel">
+      <h2>Inspector</h2>
+      <div id="inspector" class="inspector">
+        <p class="hint">Click a node to focus it — only that node and its connections
+        light up, and you can read its note here. Shift-click a second node to trace the path.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Command Matrix</h2>
+      <div class="matrix" id="matrix"></div>
+    </section>
+
+    <section class="panel grow">
+      <h2>Top Hubs</h2>
+      <ul class="hubs" id="hubs"></ul>
+      <p class="foot">drag · scroll to zoom · shift-click to trace</p>
+    </section>
+  </aside>
+
+  <!-- ── centre stage ──────────────────────────── -->
+  <section class="stage">
+    <div class="stagetools">
+      <button class="tool" id="btnFit" title="Fit graph to view">⊙ Fit</button>
+      <button class="tool" id="btnLabels" title="Toggle labels">Aa</button>
+      <button class="tool" id="btnDim" title="Toggle contrast">◐</button>
+      <span class="stagecount" id="stageCount"></span>
+    </div>
+
+    <div class="canvaswrap">
+      <div class="reactor-halo"></div>
+      <canvas id="graph"></canvas>
+      <div class="corestate" id="coreState"><b>STANDBY</b><span>awaiting uplink</span></div>
+      <div class="transcript" id="transcript"></div>
+    </div>
+
+    <div class="askbar">
+      <span class="asklabel">Ask</span>
+      <input id="ask" autocomplete="off" placeholder="“plan my day”">
+      <button id="btnMic" class="mic" title="Hold to speak">🎙</button>
+      <button id="btnSend" class="send">Transmit ▸</button>
+    </div>
+  </section>
+
+  <!-- ── right rail ────────────────────────────── -->
+  <aside class="rail right">
+    <section class="panel">
+      <h2>Filter</h2>
+      <ul class="filter" id="filter"></ul>
+    </section>
+
+    <section class="panel dialpanel">
+      <div class="dial" id="dial">
+        <svg viewBox="0 0 200 200" class="dialsvg">
+          <circle cx="100" cy="100" r="86" class="ring base"/>
+          <circle cx="100" cy="100" r="86" class="ring sweep" id="dialSweep"/>
+          <circle cx="100" cy="100" r="70" class="ring inner"/>
+          <g id="ticks"></g>
+        </svg>
+        <div class="dialtext">J.A.R.V.I.S.</div>
+      </div>
+      <div class="voicestate"><i class="dot" id="voiceDot"></i><span id="voiceState">IDLE</span></div>
+      <div class="tonebox"><span>delivery</span><b id="toneNow">—</b></div>
+      <div class="saytip">say <b>“Jarvis…”</b></div>
+      <div class="clibadge" id="cliBadge">CLAUDE CLI</div>
+    </section>
+
+    <section class="panel grow">
+      <h2>Action Log <em id="liveTag">live telemetry</em></h2>
+      <div class="statgrid">
+        <div><span>SESSION</span><b id="sSession">—</b></div>
+        <div><span>MODEL</span><b id="sModel">—</b></div>
+        <div><span>VAULT</span><b id="sVault">—</b></div>
+        <div><span>TOKENS</span><b id="sTokens">—</b></div>
+        <div><span>LATENCY</span><b id="sLatency">—</b></div>
+        <div><span>LIMIT</span><b id="sLimit">—</b></div>
+      </div>
+      <div class="log" id="log"></div>
+    </section>
+  </aside>
+</main>
+
+<script src="graph.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
