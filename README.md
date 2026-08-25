@@ -162,7 +162,7 @@ All optional, all in `.env` — see `.env.example`.
 | `JARVIS_PORT` | 8720 | |
 | `JARVIS_VAULT` | `./vault` | point at any Obsidian vault |
 | `JARVIS_MODEL` | Claude default | `opus`, `sonnet`, … |
-| `JARVIS_PERMISSION` | `acceptEdits` | Claude Code permission mode |
+| `JARVIS_PERMISSION` | `bypassPermissions` | full tool access, no prompts — see Security notes |
 | `JARVIS_WORKDIR` | `~` | what Claude can see |
 | `CLAUDE_CMD` | auto-detected | absolute path if `claude` isn't on PATH |
 
@@ -170,6 +170,14 @@ All optional, all in `.env` — see `.env.example`.
 
 - Localhost bind, per-launch random API token, same-origin checks, bounded
   request sizes.
+- **JARVIS runs with `--permission-mode bypassPermissions` by default.** A
+  headless `claude -p` can't show you a permission prompt, so this is what lets
+  JARVIS actually use your connected tools (Gmail, Calendar, Drive, web search)
+  instead of silently failing on every one. The flip side: it can also **send
+  email, delete data, and run shell commands with no confirmation**, driven by
+  whatever it hears — a misheard instruction can take a real, irreversible
+  action. Set `JARVIS_PERMISSION=acceptEdits` in `.env` for a tighter blast
+  radius (you lose unattended tool use), and only point it at input you trust.
 - `.env` and `state.json` are gitignored. Never commit them.
 - **Never add `--bare` to the Claude invocation.** It forces `ANTHROPIC_API_KEY`
   auth and would bypass your subscription entirely.
