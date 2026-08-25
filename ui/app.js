@@ -64,7 +64,10 @@ function bubble(who, text) {
   var b = document.createElement('div');
   b.className = 'bubble ' + who;
   if (who === 'jarvis') renderSpoken(b, text); else b.textContent = text;
+  document.body.classList.add('hasconvo');
   $('#transcript').appendChild(b);
+  var turns = $('#transcript').querySelectorAll('.bubble.me').length;
+  $('#convoCount').textContent = turns + (turns === 1 ? ' turn' : ' turns');
   $('#transcript').scrollTop = $('#transcript').scrollHeight;
   return b;
 }

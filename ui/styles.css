@@ -111,7 +111,7 @@ body::before{ /* faint grid, straight from the Hermes HUD */
 .tool:hover,.tool.on{color:var(--cy);border-color:var(--line-hot);box-shadow:var(--glow)}
 .stagecount{position:absolute;right:0;font-size:9px;color:#3d5568;letter-spacing:.12em}
 
-.canvaswrap{position:relative;flex:1 1 auto;min-height:260px;border:1px solid var(--line);
+.canvaswrap{position:relative;flex:1 1 auto;min-height:300px;border:1px solid var(--line);
   border-radius:14px;overflow:hidden;background:radial-gradient(circle at 50% 50%,#061019 0%,#04070c 70%)}
 .reactor-halo{position:absolute;left:50%;top:50%;width:min(74%,560px);aspect-ratio:1;
   transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;
@@ -129,12 +129,18 @@ body.boot .corestate{opacity:.3}
 .corestate span{font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:var(--cy-dim)}
 
 /* transcript bubbles */
-.transcript{position:absolute;left:0;right:0;bottom:0;max-height:56%;overflow:auto;
-  display:flex;flex-direction:column;gap:8px;padding:26px 16px 14px;
-  background:linear-gradient(to top,rgba(4,7,12,.94) 55%,rgba(4,7,12,0));
-  scrollbar-width:thin}
-.transcript:empty{display:none}
-.bubble{max-width:74%;padding:11px 15px;border-radius:13px;font-size:12.5px;line-height:1.62;
+/* The conversation used to float over the canvas and hide the graph. It now
+   has its own panel below it, so the node cloud is never obscured. */
+.convo{flex:0 0 auto;display:none;flex-direction:column;min-height:0;
+  max-height:216px;background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;padding:11px 13px 9px;backdrop-filter:blur(9px)}
+body.hasconvo .convo{display:flex}
+.convo h2{font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:var(--cy);
+  margin-bottom:9px;display:flex;justify-content:space-between;align-items:center;flex:0 0 auto}
+.convo h2 em{font-style:normal;font-size:8px;color:var(--ink-dim);letter-spacing:.14em}
+.transcript{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;
+  display:flex;flex-direction:column;gap:8px;padding:2px 4px 2px 2px;scrollbar-width:thin}
+.bubble{max-width:82%;padding:9px 13px;border-radius:11px;font-size:12px;line-height:1.55;
   animation:rise .3s ease both;white-space:pre-wrap;word-break:break-word}
 @keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
 .bubble.me{align-self:flex-start;background:rgba(14,26,40,.9);border:1px solid var(--line);color:#c3d6e6}

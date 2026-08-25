@@ -134,7 +134,7 @@ def demo_reply(message):
     if _has(norm, {"jarvis"}, {"hear"}) or norm in {"hello jarvis", "hey jarvis",
                                                     "jarvis are you there"}:
         return dict(message=None, focus="Campaign — August outbound", reply=(
-            "[warm] Every word. [dry] Try to make it an interesting one."
+            "[warm] Every word. [dry] Let's hope it's a good one."
         ), note="demo: greeting")
 
     # ② the morning brief — calendar + invoices + the conflict you missed
@@ -145,11 +145,11 @@ def demo_reply(message):
         update_state(lambda d: d.__setitem__("demo_pending", ""))
         return dict(message=None, delay=2.4, focus="SOP — Handover",
                     events=_events("googlecalendar_find_events", "gmail_fetch_emails"), reply=(
-            "[crisp] Three things. Northbeam's handover call is at eleven and they've asked "
-            "for the runbook in advance — which you haven't written. Invoice twenty-six-fourteen "
-            "for Orchard Legal went past terms this morning. [dry] And you've blocked four hours "
-            "of deep work directly on top of the Fairview review. [lightly amused] One of those "
-            "is going to lose."), note="demo: morning brief")
+            "[crisp] Three things. Northbeam's handover call is at eleven, and they've asked "
+            "for the runbook in advance — which you haven't written yet. Orchard Legal's invoice "
+            "went past terms this morning, that's twenty-six-fourteen. [dry] And you've put four "
+            "hours of deep work directly on top of the Fairview review. [lightly amused] One of "
+            "those is going to lose."), note="demo: morning brief")
 
     # ③ memory question — the answer is in the vault, not the model
     if _has(norm, {"client", "clients", "account"},
@@ -157,11 +157,11 @@ def demo_reply(message):
         update_state(lambda d: d.__setitem__("demo_pending", ""))
         return dict(message=None, delay=1.9, focus="Northbeam Automation",
                     events=_events("read_vault"), reply=(
-            "[measured] Northbeam Automation, by a distance. Eighteen thousand booked, but "
-            "forty-one logged touchpoints against nine on a typical build — nearly all of them "
-            "scope conversations that happened after the brief was signed. [dry] The margin model "
-            "says that engagement is quietly funding itself. [firm] Change orders, or it eats "
-            "November as well."), note="demo: client time analysis")
+            "[measured] Northbeam Automation, and it isn't close. Eighteen thousand booked, but "
+            "forty-one logged touchpoints against nine on a normal build — and almost all of them "
+            "are scope conversations that happened after the brief was signed. [dry] Which means "
+            "that engagement is quietly funding itself. [firm] Change orders, or it eats November "
+            "too."), note="demo: client time analysis")
 
     # ④ live web research
     if _has(norm, {"rate", "rates", "charging", "pricing", "price", "market", "competitors"},
@@ -170,12 +170,12 @@ def demo_reply(message):
         update_state(lambda d: d.__setitem__("demo_pending", ""))
         return dict(message=None, delay=5.0, focus="Positioning",
                     events=_events("web_search"), reply=(
-            "[thinking] Three bands, and they've pulled apart since spring. Independent operators "
-            "are anchoring at eight hundred to fifteen hundred a month and competing on how fast "
-            "they answer the phone. The mid-market has consolidated around three to five thousand "
-            "with an SLA attached. Above that, agencies are bundling strategy retainers at twelve "
-            "thousand and up. [pointed] Nobody in the middle band is charging for the component "
-            "library itself. They're all still selling hours with a monthly label on them."),
+            "[thinking] Three bands, and they've pulled apart since spring. Independents are "
+            "anchoring around eight hundred to fifteen hundred a month, competing mostly on how "
+            "fast they pick up the phone. The middle has settled at three to five thousand with an "
+            "SLA attached. Above that, agencies are bundling strategy retainers at twelve and up. "
+            "[pointed] What nobody's charging for is the component library itself. They're all "
+            "still selling hours with a monthly label on them."),
             note="demo: market rates")
 
     # ⑤ inbound replies -> ⑥ book them
@@ -186,18 +186,17 @@ def demo_reply(message):
         update_state(lambda d: d.__setitem__("demo_pending", "audit_booking"))
         return dict(message=None, delay=1.8, focus="Brief — Audit offer",
                     events=_events("gmail_fetch_emails"), reply=(
-            "[pleased] Two, both before nine. Ines Duarte at Kestrel Logistics, and a new name — "
-            "Dominik Reyes at Halcyon Freight, who found us through Ines. [neutral] Both want the "
-            "audit. Shall I put them in the diary?"), note="demo: audit replies")
+            "[pleased] Two, both before nine. Ines Duarte at Kestrel Logistics, and a new one — "
+            "Dominik Reyes at Halcyon Freight, who came through Ines. [neutral] Both want the "
+            "audit. Shall I get them in the diary?"), note="demo: audit replies")
 
     if _affirmative(norm) and load().get("demo_pending") == "audit_booking":
         update_state(lambda d: d.__setitem__("demo_pending", ""))
         return dict(message=None, delay=2.6, focus="Kestrel Logistics",
                     events=_events("gmail_send_email", "googlecalendar_create_event"), reply=(
-            "[satisfied] Booked. Ines on Wednesday at ten, Dominik on Thursday at two, both "
-            "invitations out with the pre-audit questionnaire attached. [dry] Dominik's assistant "
-            "replied in under a minute, which tells you roughly everything about how that account "
-            "will run."), note="demo: audits booked")
+            "[satisfied] Done. Ines is Wednesday at ten, Dominik Thursday at two, both invites "
+            "out with the pre-audit questionnaire attached. [dry] Dominik's assistant came back "
+            "inside a minute, which tells you most of what you need to know about that account."), note="demo: audits booked")
 
     return None
 
