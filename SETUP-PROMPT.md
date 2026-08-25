@@ -132,6 +132,21 @@ Match that style if you add more.
   end to end will be much higher, because it includes the LLM turn and network.
   Do not conflate the two.
 
+## Live voice mode
+
+The mic button is a **Live** toggle, not push-to-talk: it watches the input level
+and cuts an utterance after ~950ms of silence, then sends automatically. Two
+things in `ui/app.js` must not be broken if you touch it:
+
+- Detection is suspended while `running` is true and while `Live.speaking` is
+  true. Remove either guard and JARVIS transcribes its own reply as the next
+  question and loops forever.
+- `speak()` resolves on the audio's `ended` event, not on `play()`. If you make
+  it resolve early, listening resumes over the tail of its own voice.
+
+Local whisper hallucinates on silence ("you", "thank you"), so `voice.py`
+filters those. Leave `yes`/`ok`/`sure` unfiltered — they are real answers.
+
 ## Speech-to-text caveat
 
 The browser's Web Speech API relies on Google's speech service. Chromium builds

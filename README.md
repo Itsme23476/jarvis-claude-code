@@ -112,12 +112,33 @@ endpoint if you later want token-by-token speech.
 Swapping voices means editing `.env` and restarting — the value is read at
 startup.
 
+## Live voice
+
+Click **Live** next to the ask bar and it goes hands-free: talk, stop, and it
+sends by itself. An utterance ends after ~950ms of silence; anything under 350ms
+is ignored as a cough rather than a sentence. The trigger threshold is calibrated
+from your room's own noise floor at startup rather than hardcoded, so a noisy
+room does not fire constantly. A level meter under the dial shows it hearing you.
+
+Detection is suspended while a turn is running **and** while audio is playing, so
+JARVIS never transcribes its own reply and talks to itself. Use headphones
+anyway — echo cancellation is on, but speaker bleed into a hot mic is still the
+easiest way to confuse it.
+
+Tune in `ui/app.js` if the pacing is wrong for you: `SILENCE_MS` (raise to ~1400
+if it cuts you off while you pause), `MIN_SPEECH_MS`, `MAX_SPEECH_MS`.
+
 ## Listening
 
 Local `whisper.cpp` is used automatically when `whisper-cli`, `ffmpeg` and a
 `ggml-*.bin` model are present — offline, free, about half a second for a short
 clip, and it works in any browser. Install with `brew install whisper-cpp` and
 drop a model anywhere the `WHISPER_MODEL` path points.
+
+Whisper narrates silence — feed it a silent clip and the base model reliably
+returns "you" or "thank you". Those artifacts are filtered server-side so live
+mode does not fire phantom turns; `yes`/`ok`/`sure` are deliberately left alone
+because they are real confirmations.
 
 Two fallbacks exist and both have a catch. Fish Audio ASR (`/v1/asr`) is billed
 from a **separate API-credit balance** to TTS, so it can 402 while speaking works
