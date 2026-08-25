@@ -176,6 +176,13 @@ body.running .ring.sweep{stroke:var(--cy);animation:sweep 1.5s linear infinite;
 .tone{display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;
   padding:2px 7px;margin:0 4px 0 0;border-radius:4px;vertical-align:1px;
   color:var(--amber);border:1px solid rgba(255,179,64,.42);background:rgba(255,179,64,.1)}
+.vu{width:140px;height:4px;border-radius:2px;background:rgba(95,228,255,.1);overflow:hidden}
+.vufill{display:block;height:100%;width:0;border-radius:2px;background:var(--cy);
+  transition:width .07s linear}
+.vufill.hot{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.mic.live{color:var(--green);border-color:rgba(46,217,155,.6);
+  background:rgba(46,217,155,.1);animation:none}
+body.live .reactor-mini span{animation:pulse 1.4s ease-in-out infinite}
 .tonebox{display:flex;align-items:center;gap:7px;font-size:9px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--ink-dim)}
 .tonebox b{color:var(--amber);font-weight:500;letter-spacing:.06em;max-width:150px;

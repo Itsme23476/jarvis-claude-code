@@ -15,6 +15,7 @@ field named `audio`. See .agents/skills/fish-audio-api for the full spec.
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import tempfile
@@ -71,6 +72,17 @@ def describe_stt():
     return "browser speech recognition"
 
 
+# Whisper narrates silence. On a near-silent clip the base model reliably
+# invents one of these, which would fire a phantom turn in live mode. Deliberately
+# NOT blocking yes/yeah/ok/sure — those are real confirmations in normal use.
+_GHOSTS = {
+    "you", "thank you", "thanks", "thanks for watching", "thank you for watching",
+    "thanks for watching everyone", "bye", "goodbye", "bye bye", "please subscribe",
+    "subscribe", "the", "uh", "um", "hmm", "mm", "mhm", "ah", "oh", "so", "and",
+    "i", "a", "it", "he", "we", "yes yes yes",
+}
+
+
 def transcribe_local(audio, mime="audio/webm"):
     """Browser clip -> 16 kHz mono wav -> whisper.cpp -> text. Never leaves the machine."""
     model = _whisper_model()
@@ -89,13 +101,21 @@ def transcribe_local(audio, mime="audio/webm"):
         if conv.returncode != 0 or not os.path.exists(wav):
             raise RuntimeError(f"audio convert failed: {(conv.stderr or '')[:160]}")
         out = subprocess.run([WHISPER_BIN, "-m", model, "-f", wav, "-nt", "-np",
-                              "-t", "4", "-l", os.environ.get("WHISPER_LANG", "auto")],
+                              "-t", "4", "-sns",
+                              "-l", os.environ.get("WHISPER_LANG", "auto")],
                              capture_output=True, text=True, timeout=180)
         if out.returncode != 0:
             raise RuntimeError(f"whisper failed: {(out.stderr or '')[-160:]}")
         text = " ".join(out.stdout.split()).strip()
-        if text.startswith("[") and "]" in text:      # drop any [BLANK_AUDIO] marker
-            text = text.split("]", 1)[1].strip()
+        # whisper narrates silence as [BLANK_AUDIO], [Music], (clicking) and
+        # friends. Strip every such marker; if nothing real is left, say so with
+        # an empty string so live mode simply keeps listening.
+        text = re.sub(r"[\[(][^\])]{0,40}[\])]", " ", text)
+        text = " ".join(text.split()).strip()
+        if len(re.sub(r"[^A-Za-z0-9]", "", text)) < 2:
+            return ""
+        if re.sub(r"[^a-z ]", "", text.lower()).strip() in _GHOSTS:
+            return ""
         return text
 
 

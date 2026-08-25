@@ -242,7 +242,7 @@ async function transmit(message, opts) {
   answerBubble.classList.remove('thinking');
   $('#sLatency').textContent = Math.round(performance.now() - t0) + 'ms';
   setVoiceState('IDLE', '');
-  if (answerText.trim() && opts.speak !== false) speak(answerText.trim());
+  if (answerText.trim() && opts.speak !== false) await speak(answerText.trim());
 }
 
 function handleEvent(ev) {
@@ -295,86 +295,196 @@ function handleEvent(ev) {
 }
 
 /* ── voice ────────────────────────────────── */
+function playBlob(blob) {
+  return new Promise(function (resolve) {
+    var url = URL.createObjectURL(blob);
+    var audio = new Audio(url);
+    var done = function () { URL.revokeObjectURL(url); resolve(); };
+    audio.onended = done;
+    audio.onerror = done;
+    audio.play().catch(done);
+  });
+}
+
+/* Resolves when playback actually FINISHES, not when it starts — live mode
+   needs that to know when it is safe to listen again. */
 async function speak(text) {
   setVoiceState('SPEAKING', 'hot');
-  if (window.__serverVoice) {
-    try {
-      var res = await fetch('/api/speak', {
-        method: 'POST', headers: headers({ 'content-type': 'application/json' }),
-        body: JSON.stringify({ text: text })
-      });
-      if (res.ok) {
-        var audio = new Audio(URL.createObjectURL(await res.blob()));
-        audio.onended = function () { setVoiceState('IDLE', ''); };
-        await audio.play();
-        return;
-      }
-    } catch (e) { log('note', 'VOICE', 'server voice failed, using browser'); }
-  }
-  if (!window.speechSynthesis) { setVoiceState('IDLE', ''); return; }
-  var u = new SpeechSynthesisUtterance(stripTones(text));
-  u.rate = 1.02; u.pitch = 0.92;
-  u.onend = function () { setVoiceState('IDLE', ''); };
-  speechSynthesis.cancel();
-  speechSynthesis.speak(u);
-}
-
-/* Listening has two possible paths and both can fail, so try them in order and
-   say exactly which one broke instead of logging a bare "network".
-
-   1. MediaRecorder -> /api/listen -> Fish Audio ASR. Works in any browser and
-      keeps audio on the same provider as the voice. Needs Fish API credit,
-      which is billed separately from the platform balance that TTS uses.
-   2. Browser Web Speech API. Free, but it relies on Google's speech service, so
-      Chromium builds shipped without a Google API key (Brave, most notably)
-      fail instantly with error "network". */
-function browserRecognise(onText, onFail) {
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { onFail('this browser has no speech recognition'); return null; }
-  var rec = new SR();
-  rec.continuous = false; rec.interimResults = false; rec.lang = 'en-US';
-  rec.onresult = function (e) { onText(e.results[0][0].transcript); };
-  rec.onerror = function (e) {
-    if (e.error === 'network') {
-      onFail('browser speech needs Google\u2019s service — Brave blocks it. '
-           + 'Open this in Chrome, or add Fish Audio API credit for on-server listening.');
-    } else if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      onFail('microphone permission denied — allow it in site settings');
-    } else {
-      onFail('speech recognition failed: ' + e.error);
+  Live.speaking = true;
+  try {
+    if (window.__serverVoice) {
+      try {
+        var res = await fetch('/api/speak', {
+          method: 'POST', headers: headers({ 'content-type': 'application/json' }),
+          body: JSON.stringify({ text: text })
+        });
+        if (res.ok) { await playBlob(await res.blob()); return; }
+        log('note', 'VOICE', 'server voice failed, using browser');
+      } catch (e) { log('note', 'VOICE', 'server voice unreachable, using browser'); }
     }
-  };
-  return rec;
+    if (!window.speechSynthesis) return;
+    await new Promise(function (resolve) {
+      var u = new SpeechSynthesisUtterance(stripTones(text));
+      u.rate = 1.02; u.pitch = 0.92;
+      u.onend = resolve; u.onerror = resolve;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    });
+  } finally {
+    Live.speaking = false;
+    setVoiceState(Live.on ? 'LISTENING' : 'IDLE', Live.on ? 'hot' : '');
+  }
 }
 
-function setupMic() {
-  var btn = $('#btnMic');
-  var recorder = null, chunks = [], busy = false;
+/* ── live voice ───────────────────────────────
+   Hold the mic open, watch the input level, and cut an utterance when you stop
+   talking. No button press per turn.
 
-  function stopUI() {
-    busy = false;
-    btn.classList.remove('rec');
-    setVoiceState('IDLE', '');
-  }
+   Two things this has to get right:
+   - It must not hear JARVIS. Detection is suspended while a turn is running and
+     while audio is playing, otherwise the reply gets transcribed as your next
+     question and it talks to itself forever.
+   - Room tone varies. The threshold is calibrated from your actual noise floor
+     at start rather than hardcoded, so a noisy room does not trigger constantly. */
+var SILENCE_MS = 950;      // quiet this long ends the utterance
+var MIN_SPEECH_MS = 350;   // shorter than this is a cough, not a sentence
+var MAX_SPEECH_MS = 20000; // hard stop so a stuck mic cannot record forever
 
-  function fallbackToBrowser() {
-    var rec = browserRecognise(function (text) {
-      log('note', 'VOICE', 'heard: "' + text + '"');
-      stopUI();
-      transmit(text);
-    }, function (why) {
-      log('error', 'VOICE', why);
-      stopUI();
-    });
-    if (!rec) { stopUI(); return; }
+var Live = {
+  on: false, speaking: false, armed: false, sending: false,
+  stream: null, ctx: null, analyser: null, data: null,
+  recorder: null, chunks: [], raf: 0,
+  threshold: 0.02, voiceStart: 0, lastVoice: 0,
+
+  async enable() {
+    if (Live.on) return;
+    if (!window.__serverSTT) {
+      log('error', 'VOICE', 'live mode needs server-side transcription — none available');
+      return;
+    }
+    try {
+      Live.stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+    } catch (e) {
+      log('error', 'VOICE', 'microphone unavailable: ' + String(e).slice(0, 70));
+      return;
+    }
+    Live.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (Live.ctx.state === 'suspended') await Live.ctx.resume();
+    Live.analyser = Live.ctx.createAnalyser();
+    Live.analyser.fftSize = 1024;
+    Live.data = new Uint8Array(Live.analyser.fftSize);
+    Live.ctx.createMediaStreamSource(Live.stream).connect(Live.analyser);
+
+    Live.on = true;
+    document.body.classList.add('live');
+    $('#btnMic').classList.add('live');
+    setVoiceState('CALIBRATING', 'hot');
+    await Live.calibrate();
     setVoiceState('LISTENING', 'hot');
-    btn.classList.add('rec');
-    rec.onend = function () { if (busy) stopUI(); };
-    try { rec.start(); } catch (e) { log('error', 'VOICE', String(e)); stopUI(); }
-  }
+    log('ok', 'VOICE', 'live mode on — just talk, it sends when you stop');
+    Live.loop();
+  },
 
-  async function sendClip(blob) {
+  /* Sample the room for a moment and sit above it. */
+  calibrate() {
+    return new Promise(function (resolve) {
+      var samples = [], t0 = performance.now();
+      (function tick() {
+        if (!Live.on) return resolve();
+        samples.push(Live.level());
+        if (performance.now() - t0 < 700) return requestAnimationFrame(tick);
+        samples.sort(function (a, b) { return a - b; });
+        var floor = samples[Math.floor(samples.length / 2)] || 0.005;
+        Live.threshold = Math.max(floor * 3.2, 0.015);
+        log('note', 'VOICE', 'noise floor ' + floor.toFixed(4)
+          + ' → threshold ' + Live.threshold.toFixed(4));
+        resolve();
+      })();
+    });
+  },
+
+  level() {
+    if (!Live.analyser) return 0;
+    Live.analyser.getByteTimeDomainData(Live.data);
+    var sum = 0;
+    for (var i = 0; i < Live.data.length; i++) {
+      var v = (Live.data[i] - 128) / 128;
+      sum += v * v;
+    }
+    return Math.sqrt(sum / Live.data.length);
+  },
+
+  meter(rms) {
+    var pct = Math.min(100, Math.round((rms / (Live.threshold * 4)) * 100));
+    var el = $('#vuFill');
+    if (el) {
+      el.style.width = pct + '%';
+      el.className = Live.armed ? 'vufill hot' : 'vufill';
+    }
+  },
+
+  loop() {
+    if (!Live.on) return;
+    Live.raf = requestAnimationFrame(Live.loop);
+    // Never listen while we are thinking or talking.
+    if (running || Live.speaking) {
+      if (Live.armed) Live.discard();
+      Live.meter(0);
+      return;
+    }
+    var rms = Live.level();
+    Live.meter(rms);
+    var now = performance.now();
+    if (rms > Live.threshold) Live.lastVoice = now;
+
+    if (!Live.armed) {
+      if (rms > Live.threshold) Live.start(now);
+      return;
+    }
+    if (now - Live.voiceStart > MAX_SPEECH_MS) return Live.finish();
+    if (now - Live.lastVoice > SILENCE_MS) {
+      if (now - Live.voiceStart - SILENCE_MS > MIN_SPEECH_MS) Live.finish();
+      else Live.discard();
+    }
+  },
+
+  start(now) {
+    try {
+      Live.chunks = [];
+      Live.recorder = new MediaRecorder(Live.stream);
+      Live.recorder.ondataavailable = function (e) { if (e.data.size) Live.chunks.push(e.data); };
+      Live.recorder.onstop = function () {
+        var blob = new Blob(Live.chunks, { type: Live.recorder.mimeType || 'audio/webm' });
+        if (Live.sending) { Live.sending = false; Live.send(blob); }
+      };
+      Live.recorder.start();
+      Live.armed = true;
+      Live.voiceStart = now;
+      Live.lastVoice = now;
+      setVoiceState('HEARING', 'hot');
+    } catch (e) {
+      log('error', 'VOICE', 'recorder failed: ' + String(e).slice(0, 60));
+      Live.armed = false;
+    }
+  },
+
+  finish() {
+    Live.armed = false;
+    Live.sending = true;
     setVoiceState('TRANSCRIBING', 'hot');
+    try { Live.recorder.stop(); } catch (e) { Live.sending = false; }
+  },
+
+  discard() {
+    Live.armed = false;
+    Live.sending = false;
+    try { if (Live.recorder && Live.recorder.state === 'recording') Live.recorder.stop(); } catch (e) {}
+    setVoiceState(Live.on ? 'LISTENING' : 'IDLE', Live.on ? 'hot' : '');
+  },
+
+  async send(blob) {
     try {
       var res = await fetch('/api/listen', {
         method: 'POST',
@@ -382,52 +492,44 @@ function setupMic() {
         body: blob
       });
       var data = await res.json();
-      if (res.ok && data.text) {
-        log('note', 'VOICE', 'heard: "' + data.text + '"');
-        stopUI();
-        transmit(data.text);
+      var text = (data && data.text || '').trim();
+      if (!res.ok || !text) {
+        log('note', 'VOICE', 'nothing usable in that clip');
+        setVoiceState('LISTENING', 'hot');
         return;
       }
-      var msg = (data && data.error) || ('HTTP ' + res.status);
-      if (/insufficient api credit/i.test(msg)) {
-        log('error', 'VOICE', 'Fish Audio ASR needs API credit (billed separately '
-          + 'from your plan balance). Falling back to browser speech.');
-      } else {
-        log('error', 'VOICE', 'server transcription failed: ' + msg.slice(0, 120));
+      if (text.replace(/[^a-z0-9]/gi, '').length < 2) {   // "." / "[BLANK_AUDIO]"
+        setVoiceState('LISTENING', 'hot');
+        return;
       }
+      log('note', 'VOICE', 'heard: "' + text + '"');
+      await transmit(text);
+      setVoiceState(Live.on ? 'LISTENING' : 'IDLE', Live.on ? 'hot' : '');
     } catch (e) {
-      log('error', 'VOICE', 'server transcription unreachable: ' + String(e).slice(0, 80));
-    }
-    fallbackToBrowser();
-  }
-
-  btn.onclick = async function () {
-    if (busy && recorder && recorder.state === 'recording') { recorder.stop(); return; }
-    if (busy) return;
-    busy = true;
-
-    if (!window.__serverSTT || !navigator.mediaDevices || !window.MediaRecorder) {
-      fallbackToBrowser();
-      return;
-    }
-    try {
-      var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      chunks = [];
-      recorder = new MediaRecorder(stream);
-      recorder.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
-      recorder.onstop = function () {
-        stream.getTracks().forEach(function (t) { t.stop(); });
-        btn.classList.remove('rec');
-        sendClip(new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }));
-      };
-      recorder.start();
-      btn.classList.add('rec');
+      log('error', 'VOICE', 'transcription failed: ' + String(e).slice(0, 70));
       setVoiceState('LISTENING', 'hot');
-      log('note', 'VOICE', 'recording — click the mic again to send');
-    } catch (e) {
-      log('error', 'VOICE', 'microphone unavailable: ' + String(e).slice(0, 80));
-      fallbackToBrowser();
     }
+  },
+
+  disable() {
+    Live.on = false;
+    Live.armed = false;
+    cancelAnimationFrame(Live.raf);
+    try { if (Live.recorder && Live.recorder.state === 'recording') Live.recorder.stop(); } catch (e) {}
+    if (Live.stream) Live.stream.getTracks().forEach(function (t) { t.stop(); });
+    if (Live.ctx) { try { Live.ctx.close(); } catch (e) {} }
+    Live.stream = Live.ctx = Live.analyser = null;
+    document.body.classList.remove('live');
+    $('#btnMic').classList.remove('live');
+    Live.meter(0);
+    setVoiceState('IDLE', '');
+    log('note', 'VOICE', 'live mode off');
+  }
+};
+
+function setupMic() {
+  $('#btnMic').onclick = function () {
+    if (Live.on) Live.disable(); else Live.enable();
   };
 }
 
