@@ -4,7 +4,15 @@ __pycache__/
 *.pyc
 raw-*.log
 
+# Windows setup: self-contained interpreter and local run artefacts
+.python/
+.tools/
+_samples/
+_server.out
+_server.err
+
 # skills installer writes a symlink farm per agent; keep .agents (real content)
 # plus .claude (what Claude Code reads) and drop the rest
 .hermes/
 .kiro/
+*.bak
