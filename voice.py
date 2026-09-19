@@ -56,8 +56,16 @@ def whisper_ready():
 
 def stt_kind():
     """Which listener is actually usable right now."""
-    if os.environ.get("JARVIS_STT", "auto").strip().lower() == "fish":
+    forced = os.environ.get("JARVIS_STT", "auto").strip().lower()
+    # Explicit override wins. Without the "browser" branch a present Fish key
+    # always won, so there was no way to keep Fish TTS while listening locally
+    # -- which matters because Fish bills ASR from a separate credit balance.
+    if forced == "browser":
+        return "browser"
+    if forced == "fish":
         return "fish" if available() else "browser"
+    if forced == "whisper":
+        return "whisper" if whisper_ready() else ("fish" if available() else "browser")
     if whisper_ready():
         return "whisper"
     return "fish" if available() else "browser"

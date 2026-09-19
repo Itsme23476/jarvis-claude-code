@@ -1,0 +1,27 @@
+# Line endings are declared here rather than left to each clone's
+# core.autocrlf, so the repository content is identical on every platform.
+
+# Everything Git detects as text is stored and checked out with LF.
+* text=auto eol=lf
+
+# Windows batch files are the exception: cmd.exe requires CRLF.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+
+# start.sh is run by bash and must keep LF even on a Windows checkout.
+*.sh   text eol=lf
+
+# Never touch these: newline "normalisation" corrupts binary content.
+*.mp3  binary
+*.wav  binary
+*.bin  binary
+*.exe  binary
+*.dll  binary
+*.zip  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
